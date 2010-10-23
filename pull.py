@@ -24,8 +24,8 @@ def get_channel_links(channel):
         url = channel_url % (channel,i)
         try:
             html = urlopen(url).read()
-        except:
-            log.error('failed to download')
+        except Exception, ex:
+            log.error('failed to download page %s %s :: %s',channel,i,ex)
             continue
         soup = BS(html)
         links = soup.findAll('a')
@@ -45,15 +45,22 @@ def download_image(url,out_path,urls=None):
     if os.path.exists(local_path):
         log.debug('skipping: %s',local_path)
         return (url,False)
-    with file(local_path,'wb') as fh:
-        log.debug('writing: %s',local_path)
-        try:
-            fh.write(urlopen(url).read())
-        except Exception, ex:
-            log.error('failed to download: %s',ex)
-            if urls:
-                urls.add(url)
-            return (url,False)
+    try:
+        with file(local_path,'wb') as fh:
+            log.debug('writing: %s',local_path)
+            data = urlopen(url).read()
+            if len(data) == 0:
+                log.error('no data!')
+            fh.write(data)
+    except Exception, ex:
+        log.error('failed to download: %s',ex)
+        log.debug('deleting failed image: %s',local_path)
+        os.path.unlink(local_path)
+        if urls:
+            urls.add(url)
+        else:
+            raise
+        return (url,False)
 
     return (url,True)
 
@@ -87,5 +94,5 @@ if __name__ == '__main__':
                               download_image,
                               fake_it=not MULTI_THREAD,
 #                              fake_it=True,
-                              thread_percentage=.1)
+                              thread_percentage=.05)
 
